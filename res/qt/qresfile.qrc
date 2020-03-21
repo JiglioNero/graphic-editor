@@ -1,0 +1,7 @@
+<RCC>
+  <qresource prefix="newPrefix">
+    <file>blur.svg</file>
+    <file>hand.svg</file>
+    <file>arrow.svg</file>
+  </qresource>
+</RCC>
