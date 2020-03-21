@@ -192,6 +192,7 @@ class Ui_MainWindow(object):
         MainWindow.setStatusBar(self.statusbar)
         self.actionOpen_image = QtWidgets.QAction(MainWindow)
         self.actionOpen_image.setObjectName("actionOpen_image")
+
         self.actionSave = QtWidgets.QAction(MainWindow)
         self.actionSave.setObjectName("actionSave")
         self.actionSave_as = QtWidgets.QAction(MainWindow)
