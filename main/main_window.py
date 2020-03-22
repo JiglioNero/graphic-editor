@@ -7,8 +7,17 @@
 # WARNING! All changes made in this file will be lost!
 
 from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5.QtCore import QEvent
+from PyQt5.QtGui import QImage
+from PyQt5.QtWidgets import QDialog, QFileDialog, QGraphicsScene
+from save_as_dialog import *
+from linear_filter__dialog import *
 
 class Ui_MainWindow(object):
+    def __init__(self, main_window):
+        self.img = None
+        self.main_window = main_window
+
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(800, 668)
@@ -34,23 +43,32 @@ class Ui_MainWindow(object):
         self.verticalLayout.setContentsMargins(6, 6, -1, 6)
         self.verticalLayout.setSpacing(10)
         self.verticalLayout.setObjectName("verticalLayout")
+        self.actionGroup = QtWidgets.QButtonGroup(self.main_window)
+        self.actionGroup.setExclusive(True)
         self.ArrowTool = QtWidgets.QToolButton(self.leftWidget)
         icon = QtGui.QIcon()
         icon.addPixmap(QtGui.QPixmap(":/newPrefix/arrow.svg"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.ArrowTool.setIcon(icon)
         self.ArrowTool.setObjectName("ArrowTool")
+        self.ArrowTool.setCheckable(True)
+        self.ArrowTool.setChecked(True)
+        self.actionGroup.addButton(self.ArrowTool)
         self.verticalLayout.addWidget(self.ArrowTool)
         self.HandTool = QtWidgets.QToolButton(self.leftWidget)
         icon1 = QtGui.QIcon()
         icon1.addPixmap(QtGui.QPixmap(":/newPrefix/hand.svg"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.HandTool.setIcon(icon1)
         self.HandTool.setObjectName("HandTool")
+        self.HandTool.setCheckable(True)
+        self.actionGroup.addButton(self.HandTool)
         self.verticalLayout.addWidget(self.HandTool)
         self.blurTool = QtWidgets.QToolButton(self.leftWidget)
         icon2 = QtGui.QIcon()
         icon2.addPixmap(QtGui.QPixmap(":/newPrefix/blur.svg"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.blurTool.setIcon(icon2)
         self.blurTool.setObjectName("blurTool")
+        self.blurTool.setCheckable(True)
+        self.actionGroup.addButton(self.blurTool)
         self.verticalLayout.addWidget(self.blurTool)
         spacerItem = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
         self.verticalLayout.addItem(spacerItem)
@@ -67,6 +85,7 @@ class Ui_MainWindow(object):
         self.gridLayout.setObjectName("gridLayout")
         self.mainView = QtWidgets.QGraphicsView(self.centralWidget)
         self.mainView.setObjectName("mainView")
+        self.mainView.wheelEvent = self.wheelEvent
         self.gridLayout.addWidget(self.mainView, 0, 0, 1, 1)
         self.horizontalLayout.addWidget(self.centralWidget)
         self.rightWidget = QtWidgets.QWidget(self.workSpaceWidget)
@@ -190,14 +209,15 @@ class Ui_MainWindow(object):
         self.statusbar = QtWidgets.QStatusBar(MainWindow)
         self.statusbar.setObjectName("statusbar")
         MainWindow.setStatusBar(self.statusbar)
-        self.actionOpen_image = QtWidgets.QAction(MainWindow)
+        self.actionOpen_image = QtWidgets.QAction(MainWindow, triggered=self.openOpenImageDialog)
         self.actionOpen_image.setObjectName("actionOpen_image")
-
         self.actionSave = QtWidgets.QAction(MainWindow)
         self.actionSave.setObjectName("actionSave")
-        self.actionSave_as = QtWidgets.QAction(MainWindow)
+        self.actionSave.setEnabled(False)
+        self.actionSave_as = QtWidgets.QAction(MainWindow, triggered=self.openSaveAsDialog)
         self.actionSave_as.setObjectName("actionSave_as")
-        self.actionLinear = QtWidgets.QAction(MainWindow)
+        self.actionSave_as.setEnabled(False)
+        self.actionLinear = QtWidgets.QAction(MainWindow, triggered=self.openLinearFilterDialog)
         self.actionLinear.setObjectName("actionLinear")
         self.menuFile.addAction(self.actionOpen_image)
         self.menuFile.addAction(self.actionSave)
@@ -231,5 +251,39 @@ class Ui_MainWindow(object):
         self.actionSave.setText(_translate("MainWindow", "&Save"))
         self.actionSave_as.setText(_translate("MainWindow", "Save &as.."))
         self.actionLinear.setText(_translate("MainWindow", "&Linear"))
+
+
+    def openSaveAsDialog(self):
+        dialog = QDialog()
+        dialog.ui = Ui_saveAsDialog(self.filePath, self.img)
+        dialog.ui.setupUi(dialog)
+        dialog.setAttribute(QtCore.Qt.WA_DeleteOnClose)
+        dialog.exec_()
+
+    def openOpenImageDialog(self):
+        dialog = QFileDialog()
+        dialog.setFileMode(QFileDialog.ExistingFile)
+        dialog.setNameFilter("(*.png *.xpm *.jpeg *.jpg)")
+
+        if dialog.exec():
+            self.filePath = dialog.selectedFiles()[0]
+            scene = QGraphicsScene()
+            self.img = QtGui.QPixmap(self.filePath)
+            scene.addPixmap(self.img)
+            self.mainView.setScene(scene)
+            if self.img:
+                self.actionSave_as.setEnabled(True)
+                self.actionSave.setEnabled(True)
+
+    def wheelEvent(self, event):
+        zoom = 1 + event.angleDelta().y() / 2880
+        self.mainView.scale(zoom, zoom)
+
+    def openLinearFilterDialog(self):
+        dialog = QDialog()
+        dialog.ui = Ui_linearFilterDialog()
+        dialog.ui.setupUi(dialog)
+        dialog.setAttribute(QtCore.Qt.WA_DeleteOnClose)
+        dialog.exec_()
 
 import resources

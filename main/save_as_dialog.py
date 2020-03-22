@@ -7,11 +7,18 @@
 # WARNING! All changes made in this file will be lost!
 
 from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5.QtWidgets import QFileDialog, QGraphicsScene
+from PIL import Image
+
 
 class Ui_saveAsDialog(object):
+    def __init__(self, pathDefault, img):
+        self.filePathDefault = pathDefault
+        self.img = img
+
     def setupUi(self, saveAsDialog):
         saveAsDialog.setObjectName("saveAsDialog")
-        saveAsDialog.resize(367, 194)
+        saveAsDialog
         self.verticalLayout = QtWidgets.QVBoxLayout(saveAsDialog)
         self.verticalLayout.setObjectName("verticalLayout")
         self.widget = QtWidgets.QWidget(saveAsDialog)
@@ -36,14 +43,14 @@ class Ui_saveAsDialog(object):
         self.widthImg.setSizePolicy(sizePolicy)
         self.widthImg.setObjectName("widthImg")
         self.formLayout.setWidget(0, QtWidgets.QFormLayout.FieldRole, self.widthImg)
-        self.heightLine = QtWidgets.QLineEdit(self.widget_3)
+        self.heightImg = QtWidgets.QLineEdit(self.widget_3)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.heightLine.sizePolicy().hasHeightForWidth())
-        self.heightLine.setSizePolicy(sizePolicy)
-        self.heightLine.setObjectName("heightLine")
-        self.formLayout.setWidget(1, QtWidgets.QFormLayout.FieldRole, self.heightLine)
+        sizePolicy.setHeightForWidth(self.heightImg.sizePolicy().hasHeightForWidth())
+        self.heightImg.setSizePolicy(sizePolicy)
+        self.heightImg.setObjectName("heightImg")
+        self.formLayout.setWidget(1, QtWidgets.QFormLayout.FieldRole, self.heightImg)
         self.verticalLayout_2.addWidget(self.widget_3)
         self.widget_2 = QtWidgets.QWidget(self.widget)
         self.widget_2.setMaximumSize(QtCore.QSize(16777215, 50))
@@ -53,11 +60,13 @@ class Ui_saveAsDialog(object):
         self.label = QtWidgets.QLabel(self.widget_2)
         self.label.setObjectName("label")
         self.horizontalLayout.addWidget(self.label)
-        self.filePath = QtWidgets.QLineEdit(self.widget_2)
-        self.filePath.setObjectName("filePath")
-        self.horizontalLayout.addWidget(self.filePath)
+        self.filePathLine = QtWidgets.QLineEdit(self.widget_2)
+        self.filePathLine.setObjectName("filePath")
+        self.filePathLine.setText(self.filePathDefault)
+        self.horizontalLayout.addWidget(self.filePathLine)
         self.fileBrowseButton = QtWidgets.QPushButton(self.widget_2)
         self.fileBrowseButton.setObjectName("fileBrowseButton")
+        self.fileBrowseButton.clicked.connect(self.openFileBrowseDialog)
         self.horizontalLayout.addWidget(self.fileBrowseButton)
         self.verticalLayout_2.addWidget(self.widget_2)
         self.verticalLayout.addWidget(self.widget)
@@ -65,12 +74,30 @@ class Ui_saveAsDialog(object):
         self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
         self.buttonBox.setStandardButtons(QtWidgets.QDialogButtonBox.Cancel|QtWidgets.QDialogButtonBox.Save)
         self.buttonBox.setObjectName("buttonBox")
+        self.buttonBox.clicked.connect(self.saveToInputedPath)
         self.verticalLayout.addWidget(self.buttonBox)
 
         self.retranslateUi(saveAsDialog)
         self.buttonBox.accepted.connect(saveAsDialog.accept)
         self.buttonBox.rejected.connect(saveAsDialog.reject)
         QtCore.QMetaObject.connectSlotsByName(saveAsDialog)
+
+        self.widthImg.setPlaceholderText("Was " + str(self.img.width()))
+        self.widthImg.setText(str(self.img.width()))
+        self.widthImg.textEdited.connect(
+            lambda:
+            self.heightImg.setText(str(int(
+                int(self.widthImg.text()) / self.img.width() * self.img.height())))
+            if self.widthImg.text() and int(self.widthImg.text()) > 0 else False
+        )
+        self.heightImg.setPlaceholderText("Was " + str(self.img.height()))
+        self.heightImg.setText(str(self.img.height()))
+        self.heightImg.textEdited.connect(
+            lambda:
+            self.widthImg.setText(str(int(
+                int(self.heightImg.text()) * self.img.width() / self.img.height())))
+            if self.heightImg.text() and int(self.heightImg.text()) > 0 else False
+        )
 
     def retranslateUi(self, saveAsDialog):
         _translate = QtCore.QCoreApplication.translate
@@ -79,4 +106,21 @@ class Ui_saveAsDialog(object):
         self.label_3.setText(_translate("saveAsDialog", "Height:"))
         self.label.setText(_translate("saveAsDialog", "Save to:"))
         self.fileBrowseButton.setText(_translate("saveAsDialog", "Browse"))
+
+    def openFileBrowseDialog(self):
+        dialog = QFileDialog()
+        dialog.setFileMode(QFileDialog.AnyFile)
+        dialog.setNameFilter("(*.png *.xpm *.jpeg)")
+        dialog.setDefaultSuffix("png")
+        dialog.setDirectory(self.filePathDefault)
+        if dialog.exec():
+            fileName = dialog.selectedFiles()[0]
+            self.filePathLine.setText(fileName)
+
+    def saveToInputedPath(self):
+        if self.img:
+            img = Image.fromqpixmap(self.img)
+            resized_img = img.resize((int(self.widthImg.text()), int(self.heightImg.text())))
+            resized_img.save(self.filePathLine.text())
+
 

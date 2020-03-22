@@ -5,7 +5,7 @@ import sys
 class mywindow(QtWidgets.QMainWindow):
     def __init__(self):
         super(mywindow, self).__init__()
-        self.ui = Ui_MainWindow()
+        self.ui = Ui_MainWindow(self)
         self.ui.setupUi(self)
 
 
