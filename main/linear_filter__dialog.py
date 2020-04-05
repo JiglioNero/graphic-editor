@@ -7,8 +7,24 @@
 # WARNING! All changes made in this file will be lost!
 
 from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5.QtWidgets import QDialog
+
+
+class FilterDialog(QDialog):
+    def __init__(self, value):
+        super().__init__()
+        self.value = value
+        self.ui = Ui_linearFilterDialog(self.value)
+        self.ui.setupUi(self)
+
+    def getValue(self):
+        return self.ui.strength
+
 
 class Ui_linearFilterDialog(object):
+    def __init__(self, value):
+        self.strength = value
+
     def setupUi(self, linearFilterDialog):
         linearFilterDialog.setObjectName("linearFilterDialog")
         linearFilterDialog.resize(366, 86)
@@ -16,23 +32,28 @@ class Ui_linearFilterDialog(object):
         self.verticalLayout.setObjectName("verticalLayout")
         self.widget = QtWidgets.QWidget(linearFilterDialog)
         self.widget.setObjectName("widget")
-        self.formLayout = QtWidgets.QFormLayout(self.widget)
+        self.formLayout = QtWidgets.QVBoxLayout(self.widget)
         self.formLayout.setObjectName("formLayout")
+
         self.label = QtWidgets.QLabel(self.widget)
         self.label.setObjectName("label")
-        self.formLayout.setWidget(0, QtWidgets.QFormLayout.LabelRole, self.label)
-        self.sigmaSlider = QtWidgets.QSlider(self.widget)
-        self.sigmaSlider.setMaximum(10)
-        self.sigmaSlider.setPageStep(1)
-        self.sigmaSlider.setOrientation(QtCore.Qt.Horizontal)
-        self.sigmaSlider.setTickPosition(QtWidgets.QSlider.TicksAbove)
-        self.sigmaSlider.setTickInterval(1)
-        self.sigmaSlider.setObjectName("sigmaSlider")
-        self.formLayout.setWidget(0, QtWidgets.QFormLayout.FieldRole, self.sigmaSlider)
+        self.formLayout.addWidget(self.label)
+
+        self.strengthSlider = QtWidgets.QSlider(self.widget)
+        self.strengthSlider.setMaximum(10)
+        self.strengthSlider.setPageStep(1)
+        self.strengthSlider.setOrientation(QtCore.Qt.Horizontal)
+        self.strengthSlider.setTickPosition(QtWidgets.QSlider.TicksAbove)
+        self.strengthSlider.setTickInterval(1)
+        self.strengthSlider.setObjectName("sigmaSlider")
+        self.strengthSlider.setValue(self.strength)
+        self.strengthSlider.valueChanged.connect(self.onStrengthChange)
+        self.formLayout.addWidget(self.strengthSlider)
+
         self.verticalLayout.addWidget(self.widget)
         self.buttonBox = QtWidgets.QDialogButtonBox(linearFilterDialog)
         self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
-        self.buttonBox.setStandardButtons(QtWidgets.QDialogButtonBox.Cancel|QtWidgets.QDialogButtonBox.Ok)
+        self.buttonBox.setStandardButtons(QtWidgets.QDialogButtonBox.Cancel | QtWidgets.QDialogButtonBox.Ok)
         self.buttonBox.setObjectName("buttonBox")
         self.verticalLayout.addWidget(self.buttonBox)
 
@@ -41,8 +62,10 @@ class Ui_linearFilterDialog(object):
         self.buttonBox.rejected.connect(linearFilterDialog.reject)
         QtCore.QMetaObject.connectSlotsByName(linearFilterDialog)
 
+    def onStrengthChange(self):
+        self.strength = self.strengthSlider.value()
+
     def retranslateUi(self, linearFilterDialog):
         _translate = QtCore.QCoreApplication.translate
         linearFilterDialog.setWindowTitle(_translate("linearFilterDialog", "Add linear filter"))
-        self.label.setText(_translate("linearFilterDialog", "Sigma:"))
-
+        self.label.setText(_translate("linearFilterDialog", "Strength:"))

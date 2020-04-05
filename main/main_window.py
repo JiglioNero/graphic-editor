@@ -6,16 +6,25 @@
 #
 # WARNING! All changes made in this file will be lost!
 
+import cv2
+import numpy as np
+from PIL import ImageFilter
+from PIL.ImageFilter import BoxBlur
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import QEvent
 from PyQt5.QtGui import QImage
 from PyQt5.QtWidgets import QDialog, QFileDialog, QGraphicsScene
 from save_as_dialog import *
 from linear_filter__dialog import *
+from imager import histogramm as hist_util, noisey
+import copy
+
 
 class Ui_MainWindow(object):
     def __init__(self, main_window):
-        self.img = None
+        self.img_pixmap = None
+        self.img_pixmap_orig = None
+        self.linearFilterValue = 5
         self.main_window = main_window
 
     def setupUi(self, MainWindow):
@@ -43,6 +52,7 @@ class Ui_MainWindow(object):
         self.verticalLayout.setContentsMargins(6, 6, -1, 6)
         self.verticalLayout.setSpacing(10)
         self.verticalLayout.setObjectName("verticalLayout")
+        """
         self.actionGroup = QtWidgets.QButtonGroup(self.main_window)
         self.actionGroup.setExclusive(True)
         self.ArrowTool = QtWidgets.QToolButton(self.leftWidget)
@@ -69,7 +79,8 @@ class Ui_MainWindow(object):
         self.blurTool.setObjectName("blurTool")
         self.blurTool.setCheckable(True)
         self.actionGroup.addButton(self.blurTool)
-        self.verticalLayout.addWidget(self.blurTool)
+    
+    """
         spacerItem = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
         self.verticalLayout.addItem(spacerItem)
         self.horizontalLayout.addWidget(self.leftWidget)
@@ -85,6 +96,7 @@ class Ui_MainWindow(object):
         self.gridLayout.setObjectName("gridLayout")
         self.mainView = QtWidgets.QGraphicsView(self.centralWidget)
         self.mainView.setObjectName("mainView")
+        self.mainView.setMouseTracking(True)
         self.mainView.wheelEvent = self.wheelEvent
         self.gridLayout.addWidget(self.mainView, 0, 0, 1, 1)
         self.horizontalLayout.addWidget(self.centralWidget)
@@ -110,18 +122,31 @@ class Ui_MainWindow(object):
         self.line.setFrameShape(QtWidgets.QFrame.HLine)
         self.line.setObjectName("line")
         self.verticalLayout_4.addWidget(self.line)
+
         self.label = QtWidgets.QLabel(self.groupBox)
         self.label.setObjectName("label")
         self.verticalLayout_4.addWidget(self.label)
-        self.noiseSlider = QtWidgets.QSlider(self.groupBox)
-        self.noiseSlider.setMaximum(10)
-        self.noiseSlider.setOrientation(QtCore.Qt.Horizontal)
-        self.noiseSlider.setInvertedAppearance(False)
-        self.noiseSlider.setInvertedControls(False)
-        self.noiseSlider.setTickPosition(QtWidgets.QSlider.TicksAbove)
-        self.noiseSlider.setTickInterval(1)
+        self.noiseSlider = QtWidgets.QLineEdit(self.groupBox)
         self.noiseSlider.setObjectName("noiseSlider")
+        self.noiseSlider.editingFinished.connect(self.onNoiseSliderValueChange)
         self.verticalLayout_4.addWidget(self.noiseSlider)
+
+        self.label1 = QtWidgets.QLabel(self.groupBox)
+        self.label1.setObjectName("label1")
+        self.verticalLayout_4.addWidget(self.label1)
+        self.blurRadius = QtWidgets.QLineEdit(self.groupBox)
+        self.blurRadius.setObjectName("blurRadius")
+        self.blurRadius.editingFinished.connect(self.blurImage)
+        self.verticalLayout_4.addWidget(self.blurRadius)
+
+        self.label2 = QtWidgets.QLabel(self.groupBox)
+        self.label2.setObjectName("label2")
+        self.verticalLayout_4.addWidget(self.label2)
+        self.rotateDegree = QtWidgets.QLineEdit(self.groupBox)
+        self.rotateDegree.setObjectName("rotateDegree")
+        self.rotateDegree.editingFinished.connect(self.rotateImage)
+        self.verticalLayout_4.addWidget(self.rotateDegree)
+
         self.line_2 = QtWidgets.QFrame(self.groupBox)
         self.line_2.setFrameShape(QtWidgets.QFrame.HLine)
         self.line_2.setFrameShadow(QtWidgets.QFrame.Sunken)
@@ -149,7 +174,7 @@ class Ui_MainWindow(object):
         self.histogramTab.setObjectName("histogramTab")
         self.horizontalLayout_3 = QtWidgets.QHBoxLayout(self.histogramTab)
         self.horizontalLayout_3.setObjectName("horizontalLayout_3")
-        self.histogram = QtWidgets.QFrame(self.histogramTab)
+        self.histogram = QtWidgets.QLabel(self.histogramTab)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Minimum)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -175,13 +200,6 @@ class Ui_MainWindow(object):
         self.pixelCount.setText("")
         self.pixelCount.setObjectName("pixelCount")
         self.formLayout.setWidget(0, QtWidgets.QFormLayout.FieldRole, self.pixelCount)
-        self.label_4 = QtWidgets.QLabel(self.groupBox_2)
-        self.label_4.setObjectName("label_4")
-        self.formLayout.setWidget(1, QtWidgets.QFormLayout.LabelRole, self.label_4)
-        self.mediane = QtWidgets.QLabel(self.groupBox_2)
-        self.mediane.setText("")
-        self.mediane.setObjectName("mediane")
-        self.formLayout.setWidget(1, QtWidgets.QFormLayout.FieldRole, self.mediane)
         self.horizontalLayout_3.addWidget(self.groupBox_2)
         spacerItem2 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         self.horizontalLayout_3.addItem(spacerItem2)
@@ -211,7 +229,7 @@ class Ui_MainWindow(object):
         MainWindow.setStatusBar(self.statusbar)
         self.actionOpen_image = QtWidgets.QAction(MainWindow, triggered=self.openOpenImageDialog)
         self.actionOpen_image.setObjectName("actionOpen_image")
-        self.actionSave = QtWidgets.QAction(MainWindow)
+        self.actionSave = QtWidgets.QAction(MainWindow, triggered=self.save)
         self.actionSave.setObjectName("actionSave")
         self.actionSave.setEnabled(False)
         self.actionSave_as = QtWidgets.QAction(MainWindow, triggered=self.openSaveAsDialog)
@@ -234,14 +252,15 @@ class Ui_MainWindow(object):
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
-        self.ArrowTool.setText(_translate("MainWindow", "..."))
+        """self.ArrowTool.setText(_translate("MainWindow", "..."))
         self.HandTool.setText(_translate("MainWindow", "..."))
-        self.blurTool.setText(_translate("MainWindow", "..."))
+        self.blurTool.setText(_translate("MainWindow", "..."))"""
         self.groupBox.setTitle(_translate("MainWindow", "Graphic tools"))
-        self.label.setText(_translate("MainWindow", "Noise"))
+        self.label.setText(_translate("MainWindow", "Noise factor:"))
+        self.label1.setText(_translate("MainWindow", "Blur radius:"))
+        self.label2.setText(_translate("MainWindow", "Rotate degree:"))
         self.groupBox_2.setTitle(_translate("MainWindow", "Parameters"))
         self.label_2.setText(_translate("MainWindow", "Pixel count:"))
-        self.label_4.setText(_translate("MainWindow", "Mediane:"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.histogramTab), _translate("MainWindow", "Histogram"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_2), _translate("MainWindow", "Tab 2"))
         self.menuFile.setTitle(_translate("MainWindow", "&File"))
@@ -252,13 +271,18 @@ class Ui_MainWindow(object):
         self.actionSave_as.setText(_translate("MainWindow", "Save &as.."))
         self.actionLinear.setText(_translate("MainWindow", "&Linear"))
 
-
     def openSaveAsDialog(self):
         dialog = QDialog()
-        dialog.ui = Ui_saveAsDialog(self.filePath, self.img)
+        dialog.ui = Ui_saveAsDialog(self.filePath, self.img_pixmap)
         dialog.ui.setupUi(dialog)
         dialog.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         dialog.exec_()
+
+    def save(self, path=None):
+        if path:
+            self.img_pixmap.save(path)
+        else:
+            self.img_pixmap.save(self.filePath)
 
     def openOpenImageDialog(self):
         dialog = QFileDialog()
@@ -267,11 +291,10 @@ class Ui_MainWindow(object):
 
         if dialog.exec():
             self.filePath = dialog.selectedFiles()[0]
-            scene = QGraphicsScene()
-            self.img = QtGui.QPixmap(self.filePath)
-            scene.addPixmap(self.img)
-            self.mainView.setScene(scene)
-            if self.img:
+            self.img_pixmap = QtGui.QPixmap(self.filePath)
+            self.img_pixmap_orig = QtGui.QPixmap(self.filePath)
+            self.notifyImageChange()
+            if self.img_pixmap and self.img_pixmap_orig:
                 self.actionSave_as.setEnabled(True)
                 self.actionSave.setEnabled(True)
 
@@ -279,11 +302,68 @@ class Ui_MainWindow(object):
         zoom = 1 + event.angleDelta().y() / 2880
         self.mainView.scale(zoom, zoom)
 
+    def rotateImage(self):
+        text = self.rotateDegree.text()
+        if text and text.isnumeric() and self.img_pixmap:
+            tmp = Image.fromqpixmap(self.img_pixmap).rotate(int(self.rotateDegree.text()))
+            self.img_pixmap = tmp.toqpixmap()
+            self.notifyImageChange()
+
     def openLinearFilterDialog(self):
-        dialog = QDialog()
-        dialog.ui = Ui_linearFilterDialog()
-        dialog.ui.setupUi(dialog)
+        dialog = FilterDialog(self.linearFilterValue)
         dialog.setAttribute(QtCore.Qt.WA_DeleteOnClose)
-        dialog.exec_()
+        if dialog.exec_():
+            self.linearFilterValue = dialog.getValue()
+            strength = self.linearFilterValue
+
+            kernel_motion_blur = cv2.getGaussianKernel(11, 1.5)
+            kernel_motion_blur *= strength/5
+            window = np.outer(kernel_motion_blur, kernel_motion_blur.transpose())
+
+            path = "tmp.png"
+            self.save(path)
+
+            out = cv2.filter2D(cv2.imread(path), -1, window)
+            self.img_pixmap = Image.fromarray(out).toqpixmap()
+            self.notifyImageChange()
+
+    def drawHistogram(self):
+        hist, pixel_count = hist_util.getRGBhist(Image.fromqpixmap(self.img_pixmap))
+        hist_pixmap = hist.toqpixmap()
+        hist_pixmap = hist_pixmap.scaledToHeight(self.histogram.frameGeometry().height())
+        self.pixelCount.setText(str(pixel_count))
+        self.histogram.setPixmap(hist_pixmap)
+
+    def blurImage(self):
+        text = self.blurRadius.text()
+        if text and text.isnumeric() and self.img_pixmap:
+            radius = int(text)
+            if radius == 0:
+                self.img_pixmap = self.img_pixmap_orig
+            else:
+                img = Image.fromqpixmap(self.img_pixmap)
+                img = img.filter(ImageFilter.BoxBlur(radius))
+                self.img_pixmap = img.toqpixmap()
+            self.notifyImageChange()
+
+    def onNoiseSliderValueChange(self):
+        self.addNoiseToImg()
+
+    def addNoiseToImg(self):
+        text = self.noiseSlider.text()
+        if text and text.isnumeric() and self.img_pixmap:
+            if int(text) > 0:
+                self.img_pixmap = noisey.addNoise(int(self.noiseSlider.text()),
+                                                  Image.fromqpixmap(self.img_pixmap)).toqpixmap()
+            else:
+                self.img_pixmap = self.img_pixmap_orig.copy()
+            self.notifyImageChange()
+
+    def notifyImageChange(self):
+        scene = QGraphicsScene()
+        scene.addPixmap(self.img_pixmap)
+        self.mainView.setScene(scene)
+        self.drawHistogram()
+
 
 import resources
